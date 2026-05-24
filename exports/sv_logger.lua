@@ -1,5 +1,3 @@
-local DISCORD_NAME = "Logger Bot"
-local DISCORD_IMAGE = "https://i.ibb.co/bzct884/logo.png"
 local logWebhook = GetConvar("discord_log_webhook", "NOT SET")
 
 local colors = {
