@@ -14,4 +14,4 @@ jobs:
   lint:
     uses: PulsarFW/.github/.github/workflows/lint.yml@main
     with:
-      extra_libs: "oxmysql+pulsar_pwnzor"
+      extra_libs: "mysql"
