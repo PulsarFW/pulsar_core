@@ -1,23 +1,28 @@
-local EnableJumpRagdoll = true
+COMPONENTS.Core = {
+	_required = { "Init" },
+	_name = "core",
+}
+
+local _playerId = PlayerId()
+
 CreateThread(function()
-	LocalPlayer.state.PlayerID = PlayerId()
+	plsr.State.flags.PlayerID = _playerId
+
 	StatSetInt(`MP0_STAMINA`, 25, true)
 
-	AddStateBagChangeHandler(
-		"isAdmin",
-		string.format("player:%s", GetPlayerServerId(LocalPlayer.state.PlayerID)),
-		function(bagName, key, value, _unused, replicated)
-			if value then
-				StatSetInt(`MP0_SHOOTING_ABILITY`, 100, true)
-			else
-				StatSetInt(`MP0_SHOOTING_ABILITY`, 5, true)
-			end
+	plsr.State:Watch('flags', 'isAdmin', function(value)
+		if value then
+			StatSetInt(`MP0_SHOOTING_ABILITY`, 100, true)
+		else
+			StatSetInt(`MP0_SHOOTING_ABILITY`, 5, true)
 		end
-	)
+	end)
 end)
 
 _baseThreading = false
-function InitCore()
+local _inPauseMenu = false
+local _ped = 0
+function COMPONENTS.Core.Init(self)
 	if _baseThreading then
 		return
 	end
@@ -26,11 +31,15 @@ function InitCore()
 	ShutdownLoadingScreenNui()
 	ShutdownLoadingScreen()
 
-	LocalPlayer.state.ped = PlayerPedId()
-	LocalPlayer.state.myPos = GetEntityCoords(LocalPlayer.state.ped)
-	LocalPlayer.state.inPauseMenu = IsPauseMenuActive()
+	_ped = PlayerPedId()
+	plsr.State.flags.ped = _ped
+	plsr.State.flags.position = GetEntityCoords(_ped)
 
-	AddTextEntry("FE_THDR_GTAO", "~y~Pulsar Framework~m~")
+	_inPauseMenu = IsPauseMenuActive()
+	plsr.State.flags.inPauseMenu = _inPauseMenu
+
+	AddTextEntry("FE_THDR_GTAO", "~g~Pulsar Framework~m~")
+	AddTextEntry('PM_PANE_CFX', "Pulsar Framework")
 
 	SetScenarioTypeEnabled("WORLD_VEHICLE_STREETRACE", false)
 	SetScenarioTypeEnabled("WORLD_VEHICLE_SALTON_DIRT_BIKE", false)
@@ -47,13 +56,13 @@ function InitCore()
 	SetStaticEmitterEnabled("LOS_SANTOS_VANILLA_UNICORN_01_STAGE", false)
 	SetStaticEmitterEnabled("LOS_SANTOS_VANILLA_UNICORN_02_MAIN_ROOM", false)
 	SetStaticEmitterEnabled("LOS_SANTOS_VANILLA_UNICORN_03_BACK_ROOM", false)
-	SetStaticEmitterEnabled("collision_9qv4ecm", false)                                               -- Tequila
-	SetAudioFlag("DisableFlightMusic", true)                                                          -- disable flight music yay
-	SetAudioFlag("PoliceScannerDisabled", true)                                                       -- disabled police scanners in vehicles
+	SetStaticEmitterEnabled("collision_9qv4ecm", false) -- Tequila
+	SetAudioFlag("DisableFlightMusic", true) -- disable flight music yay
+	SetAudioFlag("PoliceScannerDisabled", true) -- disabled police scanners in vehicles
 
 	AddScenarioBlockingArea(-3966.93, -3934.72, 200, 1429.366, -224.4396, 2000, false, true, true, true) -- Disable aircraft spawns
 
-	local centerPoint = vector3(-1324.7, -800.07, 17.71)                                              -- Disable banktruck_baycity
+	local centerPoint = vector3(-1324.7, -800.07, 17.71) -- Disable banktruck_baycity
 	local radiusSize = 180.0
 	AddScenarioBlockingArea(centerPoint - radiusSize, centerPoint + radiusSize, false, true, true, true)
 	AddPopMultiplierArea(centerPoint - radiusSize, centerPoint + radiusSize, 0.0, 0.0, false)
@@ -99,11 +108,12 @@ function InitCore()
 		while _baseThreading do
 			Wait(1000)
 			local ped = PlayerPedId()
-			if ped ~= LocalPlayer.state.ped then
-				LocalPlayer.state.ped = ped
-				SetEntityProofs(LocalPlayer.state.ped, false, false, false, false, false, true, false, false)
-				SetPedDropsWeaponsWhenDead(LocalPlayer.state.ped, false)
-				SetPedAmmoToDrop(LocalPlayer.state.ped, 0)
+			if ped ~= _ped then
+				_ped = ped
+				plsr.State.flags.ped = _ped
+				SetEntityProofs(_ped, false, false, false, false, false, true, false, false)
+				SetPedDropsWeaponsWhenDead(_ped, false)
+				SetPedAmmoToDrop(_ped, 0)
 
 				if GetEntityMaxHealth(ped) ~= 200 then
 					SetEntityMaxHealth(ped, 200)
@@ -122,8 +132,9 @@ function InitCore()
 	CreateThread(function()
 		while _baseThreading do
 			Wait(100)
-			LocalPlayer.state.myPos = GetEntityCoords(LocalPlayer.state.ped)
-			LocalPlayer.state.inPauseMenu = IsPauseMenuActive()
+			plsr.State.flags.position = GetEntityCoords(_ped)
+			_inPauseMenu = IsPauseMenuActive()
+			plsr.State.flags.inPauseMenu = _inPauseMenu
 		end
 	end)
 
@@ -138,42 +149,30 @@ function InitCore()
 		end
 	end)
 
+	-- true per-frame natives only - anything that doesn't reset itself every frame belongs in the slow "persistent setters" thread below instead
 	CreateThread(function()
 		while _baseThreading do
-			SetRadarZoom(1200) -- 1200
-
-			if not LocalPlayer.state.wepTest then
+			if not plsr.State.flags.wepTest then
 				SetVehicleDensityMultiplierThisFrame(0.2)
 				SetPedDensityMultiplierThisFrame(0.8)
 				SetRandomVehicleDensityMultiplierThisFrame(0.2)
 				SetParkedVehicleDensityMultiplierThisFrame(0.5)
 				SetScenarioPedDensityMultiplierThisFrame(0.8, 0.8)
 			end
-			NetworkSetFriendlyFireOption(true)
 
-			if IsPedInCover(LocalPlayer.state.ped, 0) and not IsPedAimingFromCover(LocalPlayer.state.ped) then
-				DisablePlayerFiring(LocalPlayer.state.ped, true)
+			if IsPedInCover(_ped, 0) and not IsPedAimingFromCover(_ped) then
+				DisablePlayerFiring(_ped, true)
 			end
 
 			-- should disable any vehicle rewards
-			DisablePlayerVehicleRewards(LocalPlayer.state.ped)
+			DisablePlayerVehicleRewards(_ped)
 
 			-- set lockrange to 2.0
-			SetPlayerLockonRangeOverride(LocalPlayer.state.PlayerID, 2.0)
-
-			-- should disable headshots
-			-- SetPedSuffersCriticalHits(PlayerPedId(), false)
+			SetPlayerLockonRangeOverride(_playerId, 2.0)
 
 			-- disable distance cop sirens
 			DistantCopCarSirens(false)
 
-			Wait(1)
-		end
-	end)
-
-	CreateThread(function()
-		while _baseThreading do
-			SetRadarBigmapEnabled(false, false)
 			DisableControlAction(0, 14, true)
 			DisableControlAction(0, 15, true)
 			DisableControlAction(0, 16, true)
@@ -202,7 +201,7 @@ function InitCore()
 			HideHudComponentThisFrame(20)
 			--DontTiltMinimapThisFrame()
 
-			Wait(1)
+			Wait(0)
 		end
 	end)
 
@@ -214,12 +213,17 @@ function InitCore()
 		end
 	end)
 
+	-- persistent setters - none of these reset themselves each frame once applied
 	CreateThread(function()
 		for i = 1, 25 do
 			EnableDispatchService(i, false)
 		end
 
 		while _baseThreading do
+			SetRadarZoom(1200)
+			SetRadarBigmapEnabled(false, false)
+			NetworkSetFriendlyFireOption(true)
+
 			local ped = PlayerPedId()
 			SetPedHelmet(ped, false)
 			SetPedConfigFlag(ped, 438, true)
@@ -237,7 +241,7 @@ function InitCore()
 			SetCreateRandomCops(false)
 			SetCreateRandomCopsOnScenarios(false)
 
-			Wait(2)
+			Wait(2000)
 		end
 	end)
 
@@ -255,35 +259,40 @@ function InitCore()
 		end
 	end)
 
-	if EnableJumpRagdoll then
-		CreateThread(function()
-			local resetcounter = 0
-			local jumpDisabled = false
-			while _baseThreading do
-				Wait(100)
-				if jumpDisabled and resetcounter > 0 and IsPedJumping(PlayerPedId()) then
-					SetPedToRagdoll(PlayerPedId(), 1000, 1000, 3, 0, 0, 0)
+	CreateThread(function()
+		local resetcounter = 0
+		local jumpDisabled = false
+
+		while _baseThreading do
+			Wait(100)
+			if jumpDisabled and resetcounter > 0 and IsPedJumping(PlayerPedId()) then
+				SetPedToRagdoll(PlayerPedId(), 1000, 1000, 3, 0, 0, 0)
+				resetcounter = 0
+			end
+
+			if not jumpDisabled and IsPedJumping(PlayerPedId()) then
+				jumpDisabled = true
+				resetcounter = 10
+				Wait(1200)
+			end
+
+			if resetcounter > 0 then
+				resetcounter = resetcounter - 1
+			else
+				if jumpDisabled then
 					resetcounter = 0
-				end
-				if not jumpDisabled and IsPedJumping(PlayerPedId()) then
-					jumpDisabled = true
-					resetcounter = 10
-					Wait(1200)
-				end
-				if resetcounter > 0 then
-					resetcounter = resetcounter - 1
-				else
-					if jumpDisabled then
-						resetcounter = 0
-						jumpDisabled = false
-					end
+					jumpDisabled = false
 				end
 			end
-		end)
-	end
+		end
+	end)
 end
 
 CreateThread(function()
+	while not exports or exports[GetCurrentResourceName()] == nil do
+		Wait(1)
+	end
+
 	local ped = PlayerPedId()
 	FreezeEntityPosition(ped, true)
 	SetEntityVisible(ped, false)
@@ -294,10 +303,18 @@ CreateThread(function()
 		Wait(1)
 	end
 
-	InitCore()
+	COMPONENTS.Core:Init()
 
 	TriggerEvent("Proxy:Shared:RegisterReady")
+	for k, v in pairs(COMPONENTS) do
+		TriggerEvent("Proxy:Shared:ExtendReady", k)
+	end
+
 	Wait(1000)
+
+	COMPONENTS.Proxy.ExportsReady = true
+	TriggerEvent("Core:Shared:Ready")
+	return
 end)
 
 AddEventHandler("onResourceStopped", function(resourceName)

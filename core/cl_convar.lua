@@ -1,15 +1,6 @@
-exports("GetDiscordApp", function()
-	return GetConvar("discord_app", "")
-end)
-
-exports("GetMaxClients", function()
-	return tonumber(GetConvar("sv_maxclients", "32"))
-end)
-
-exports("GetLogging", function()
-	return tonumber(GetConvar("log_level", 0))
-end)
-
-exports("GetPlsfwVersion", function()
-	return GetConvar("plsfw_version", "UNKNOWN")
-end)
+COMPONENTS.Convar = {
+	DISCORD_APP = { value = GetConvar("discord_app", "") },
+	MAX_CLIENTS = { value = tonumber(GetConvar("sv_maxclients", "32")) },
+	LOGGING = { value = tonumber(GetConvar("log_level", 0)) },
+	PLSR_VERSION = { value = GetConvar("plsr_version", "UNKNOWN") },
+}

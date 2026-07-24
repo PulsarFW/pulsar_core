@@ -1,18 +1,17 @@
 _dropping = {}
-local _players = {}
-local _recentDisconnects = {}
-local _middlewareRegistered = false
+COMPONENTS.Players = COMPONENTS.Players or {}
+COMPONENTS.RecentDisconnects = COMPONENTS.RecentDisconnects or {}
 
 CreateThread(function()
 	while true do
-		for k, v in pairs(_players) do
+		for k, v in pairs(COMPONENTS.Players) do
 			if not GetPlayerEndpoint(k) and not _dropping[k] then
-				local char = exports['pulsar-characters']:FetchCharacterSource(k)
+				local char = COMPONENTS.Fetch:CharacterSource(k)
 				if char ~= nil then
 					TriggerEvent("Characters:Server:PlayerDropped", k, char:GetData())
 				end
-				exports['pulsar-core']:MiddlewareTriggerEvent("playerDropped", k, "Time Out")
-				_players[k] = nil
+				COMPONENTS.Middleware:TriggerEvent("playerDropped", k, "Time Out")
+				COMPONENTS.Players[k] = nil
 			end
 		end
 		Wait(60000)
@@ -20,22 +19,17 @@ CreateThread(function()
 end)
 
 AddEventHandler("Proxy:Shared:RegisterReady", function()
-	if _middlewareRegistered then
-		return
-	end
-	_middlewareRegistered = true
-
-	exports['pulsar-core']:MiddlewareAdd("playerDropped", function(source, message)
-		local player = _players[source]
+	COMPONENTS.Middleware:Add("playerDropped", function(source, message)
+		local player = COMPONENTS.Players[source]
 		if player ~= nil then
 			local lastLocationMessage = ""
-			local lastCoords = exports['pulsar-characters']:GetLastLocation(source) or false
+			local lastCoords = COMPONENTS.Characters:GetLastLocation(source) or false
 			if lastCoords and type(lastCoords) == "vector3" then
 				lastLocationMessage = string.format(" [Coords: %s]", lastCoords)
 			end
 
-			exports['pulsar-core']:LoggerInfo(
-				"Base",
+			COMPONENTS.Logger:Info(
+				"Core",
 				string.format(
 					"%s (%s) With Source %s Disconnected, Reason: %s%s",
 					player:GetData("Name"),
@@ -55,10 +49,10 @@ AddEventHandler("Proxy:Shared:RegisterReady", function()
 			)
 		end
 	end, 1)
-	exports['pulsar-core']:MiddlewareAdd("playerDropped", function(source, message)
-		local player = _players[source]
+	COMPONENTS.Middleware:Add("playerDropped", function(source, message)
+		local player = COMPONENTS.Players[source]
 		if player ~= nil then
-			local char = exports['pulsar-characters']:FetchCharacterSource(source)
+			local char = COMPONENTS.Fetch:CharacterSource(source)
 
 			local pData = {
 				Source = source,
@@ -79,11 +73,11 @@ AddEventHandler("Proxy:Shared:RegisterReady", function()
 				DisconnectedTime = os.time(),
 			}
 
-			if #_recentDisconnects >= 60 then
-				table.remove(_recentDisconnects, 1)
+			if #COMPONENTS.RecentDisconnects >= 60 then
+				table.remove(COMPONENTS.RecentDisconnects, 1)
 			end
 
-			table.insert(_recentDisconnects, pData)
+			table.insert(COMPONENTS.RecentDisconnects, pData)
 		end
 	end, 2)
 end)
@@ -92,31 +86,31 @@ AddEventHandler("playerDropped", function(message)
 	local src = source
 	_dropping[src] = true
 
-	local char = exports['pulsar-characters']:FetchCharacterSource(src)
+	local char = COMPONENTS.Fetch:CharacterSource(src)
 	if char ~= nil then
 		TriggerEvent("Characters:Server:PlayerDropped", src, char:GetData())
 	end
 
-	exports['pulsar-core']:MiddlewareTriggerEvent("playerDropped", src, message)
-	_players[src] = nil
+	COMPONENTS.Middleware:TriggerEvent("playerDropped", src, message)
+	COMPONENTS.Players[src] = nil
 	_dropping[src] = nil
 
 	if char ~= nil then
-		exports["pulsar-core"]:DeleteStore(src, "Character")
+		COMPONENTS.DataStore:DeleteStore(src, "Character")
 	end
-	exports["pulsar-core"]:DeleteStore(src, "Player")
+	COMPONENTS.DataStore:DeleteStore(src, "Player")
 	TriggerEvent("Characters:Server:DropCleanup", src)
 end)
 
 AddEventHandler("Core:Server:ForceUnload", function(source)
 	DropPlayer(source, "You were force unloaded but were still on the server, this was probably mistake.")
-	_players[source] = nil
+	COMPONENTS.Players[source] = nil
 	_dropping[source] = nil
 end)
 
 AddEventHandler("Queue:Server:SessionActive", function(source, data)
 	CreateThread(function()
-		Player(source).state.ID = source
+		COMPONENTS.State:SetPlayerFlag(source, 'ID', source)
 
 		if data == nil then
 			DropPlayer(source, "Unable To Get Your User Data, Please Try To Rejoin")
@@ -131,34 +125,37 @@ AddEventHandler("Queue:Server:SessionActive", function(source, data)
 				AccountID = data.AccountID,
 				Avatar = data.Avatar,
 				Identifier = data.Identifier,
-				--Tokens = exports["pulsar-core"]:CheckTokens(source, data.ID, data.Tokens),
+				--Tokens = COMPONENTS.Player:CheckTokens(source, data.ID, data.Tokens),
 				GameName = GetPlayerName(source),
 			}
 
-			for k, v in pairs(_players) do
-				if v:GetData("AccountID") == pData.AccountID then
-					_players[k] = nil
-					exports['pulsar-core']:LoggerError(
-						"Base",
-						string.format("%s Connected But Was Already Registered As A Player, Clearing", pData.AccountID)
-					)
-					if v:GetData("Source") ~= nil then
-						DropPlayer(
-							v:GetData("Source"),
-							"You've Been Dropped Because Your Account Has Rejoined The Server. Using your account on multiple PCs to connect multiple times is not allowed."
+			-- dev lets you run two clients under the same account for solo testing, prod doesn't
+			if GlobalState.IsProduction then
+				for k, v in pairs(COMPONENTS.Players) do
+					if v:GetData("AccountID") == pData.AccountID then
+						COMPONENTS.Players[k] = nil
+						COMPONENTS.Logger:Error(
+							"Core",
+							string.format("%s Connected But Was Already Registered As A Player, Clearing", pData.AccountID)
 						)
+						if v:GetData("Source") ~= nil then
+							DropPlayer(
+								v:GetData("Source"),
+								"You've Been Dropped Because Your Account Has Rejoined The Server. Using your account on multiple PCs to connect multiple times is not allowed."
+							)
+						end
 					end
 				end
 			end
 
-			_players[source] = PlayerClass(source, pData)
-			exports["pulsar-core"]:RoutePlayerToHiddenRoute(source)
-			exports['pulsar-core']:LoggerInfo(
-				"Base",
+			COMPONENTS.Players[source] = PlayerClass(source, pData)
+			COMPONENTS.Routing:RoutePlayerToHiddenRoute(source)
+			COMPONENTS.Logger:Info(
+				"Core",
 				string.format(
 					"%s (%s) Connected With Source %s",
-					_players[source]:GetData("Name"),
-					_players[source]:GetData("AccountID"),
+					COMPONENTS.Players[source]:GetData("Name"),
+					COMPONENTS.Players[source]:GetData("AccountID"),
 					source
 				),
 				{
@@ -171,97 +168,76 @@ AddEventHandler("Queue:Server:SessionActive", function(source, data)
 				}
 			)
 
-			TriggerClientEvent("Player:Client:SetData", source, _players[source]:GetData())
+			TriggerClientEvent("Player:Client:SetData", source, COMPONENTS.Players[source]:GetData())
 
-			Player(source).state.isStaff = _players[source].Permissions:IsStaff()
-			Player(source).state.isAdmin = _players[source].Permissions:IsAdmin()
-			Player(source).state.isDev = _players[source].Permissions:GetLevel() >= 100
+			COMPONENTS.State:SetPlayerFlag(source, 'isStaff', COMPONENTS.Players[source].Permissions:IsStaff())
+			COMPONENTS.State:SetPlayerFlag(source, 'isAdmin', COMPONENTS.Players[source].Permissions:IsAdmin())
+			COMPONENTS.State:SetPlayerFlag(source, 'isDev', COMPONENTS.Players[source].Permissions:GetLevel() >= 100)
 
 			TriggerEvent("Player:Server:Connected", source)
 		end
 	end)
 end)
 
-exports("CheckTokens", function(source, accountId, existing)
-	local p = promise.new()
+COMPONENTS.Player = {
+	_required = {},
+	_name = "core",
+	CheckTokens = function(self, source, accountId, existing)
+		local p = promise.new()
 
-	local ctkns = {}
-	for i = 0, GetNumPlayerTokens(source) - 1 do
-		ctkns[GetPlayerToken(source, i)] = true
-	end
-
-	if existing ~= nil then
-		for k, v in ipairs(existing) do
-			if ctkns[v] then
-				ctkns[v] = nil
-			end
-		end
-		for k, v in pairs(ctkns) do
-			table.insert(existing, k)
+		local ctkns = {}
+		for i = 0, GetNumPlayerTokens(source) - 1 do
+			ctkns[GetPlayerToken(source, i)] = true
 		end
 
-		local tokensJson = json.encode(existing)
-		exports.oxmysql:execute(
-			'UPDATE tokens SET tokens = ? WHERE account = ?',
-			{ tokensJson, accountId },
-			function(affectedRows)
-				if affectedRows > 0 then
-					p:resolve(existing)
-				else
-					exports.oxmysql:execute(
-						'INSERT INTO tokens (account, tokens) VALUES (?, ?)',
-						{ accountId, tokensJson },
-						function(insertId)
-							p:resolve(existing)
-						end
-					)
+		local finalTokens
+		if existing ~= nil then
+			for k, v in ipairs(existing) do
+				if ctkns[v] then
+					ctkns[v] = nil
 				end
 			end
-		)
-	else
-		local tkns = {}
-		for k, v in pairs(ctkns) do
-			table.insert(tkns, k)
+			for k, v in pairs(ctkns) do
+				table.insert(existing, k)
+			end
+			finalTokens = existing
+		else
+			finalTokens = {}
+			for k, v in pairs(ctkns) do
+				table.insert(finalTokens, k)
+			end
 		end
 
-		local tokensJson = json.encode(tkns)
-		exports.oxmysql:execute(
-			'INSERT INTO tokens (account, tokens) VALUES (?, ?) ON DUPLICATE KEY UPDATE tokens = ?',
-			{ accountId, tokensJson, tokensJson },
-			function(result)
-				p:resolve(tkns)
+		COMPONENTS.Database:Query(
+			"CREATE TABLE IF NOT EXISTS `tokens` (`account` BIGINT UNSIGNED PRIMARY KEY, `tokens` JSON NOT NULL)",
+			nil,
+			function()
+				COMPONENTS.Database:Update(
+					"INSERT INTO `tokens` (`account`, `tokens`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `tokens` = VALUES(`tokens`)",
+					{ accountId, json.encode(finalTokens) },
+					function()
+						p:resolve(finalTokens)
+					end
+				)
 			end
 		)
-	end
 
-	return Citizen.Await(p)
-end)
-
-exports("GetPlayer", function(source)
-	return _players[source]
-end)
-
-exports("GetAllPlayers", function()
-	return _players
-end)
-
-exports("GetRecentDisconnects", function()
-	return _recentDisconnects
-end)
+		return Citizen.Await(p)
+	end,
+}
 
 function PlayerClass(source, data)
-	local _data = exports["pulsar-core"]:CreateStore(source, "Player", data)
+	local _data = COMPONENTS.DataStore:CreateStore(source, "Player", data)
 
 	_data.Permissions = {
 		IsStaff = function(self)
 			for k, v in ipairs(_data:GetData("Groups")) do
-				local group = exports['pulsar-core']:ConfigGetGroupById(v)
 				if
-					group ~= nil
-					and type(group.Permission) == "table"
+					COMPONENTS.Config.Groups[v] ~= nil
+					and type(COMPONENTS.Config.Groups[v].Permission) == "table"
 					and (
-						group.Permission.Group == "staff"
-						or group.Permission.Group == "admin"
+						COMPONENTS.Config.Groups[v].Permission.Group == "staff"
+						or COMPONENTS.Config.Groups[v].Permission.Group == "admin"
 					)
 				then
 					return true
@@ -271,11 +247,10 @@ function PlayerClass(source, data)
 		end,
 		IsAdmin = function(self)
 			for k, v in ipairs(_data:GetData("Groups")) do
-				local group = exports['pulsar-core']:ConfigGetGroupById(v)
 				if
-					group ~= nil
-					and type(group.Permission) == "table"
-					and group.Permission.Group == "admin"
+					COMPONENTS.Config.Groups[v] ~= nil
+					and type(COMPONENTS.Config.Groups[v].Permission) == "table"
+					and COMPONENTS.Config.Groups[v].Permission.Group == "admin"
 				then
 					return true
 				end
@@ -285,13 +260,12 @@ function PlayerClass(source, data)
 		GetLevel = function(self)
 			local highest = 0
 			for k, v in ipairs(_data:GetData("Groups")) do
-				local group = exports['pulsar-core']:ConfigGetGroupById(tostring(v))
 				if
-					group ~= nil
-					and type(group.Permission) == "table"
+					COMPONENTS.Config.Groups[tostring(v)] ~= nil
+					and type(COMPONENTS.Config.Groups[tostring(v)].Permission) == "table"
 				then
-					if group.Permission.Level > highest then
-						highest = group.Permission.Level
+					if COMPONENTS.Config.Groups[tostring(v)].Permission.Level > highest then
+						highest = COMPONENTS.Config.Groups[tostring(v)].Permission.Level
 					end
 				end
 			end
@@ -302,16 +276,15 @@ function PlayerClass(source, data)
 
 	local license = GetPlayerLicense(source)
 	for k, v in ipairs(_data:GetData("Groups")) do
-		local group = exports['pulsar-core']:ConfigGetGroupById(tostring(v))
 		if
-			group ~= nil
-			and type(group.Permission) == "table"
-			and group.Permission.Group
+			COMPONENTS.Config.Groups[tostring(v)] ~= nil
+			and type(COMPONENTS.Config.Groups[tostring(v)].Permission) == "table"
+			and COMPONENTS.Config.Groups[tostring(v)].Permission.Group
 		then
 			ExecuteCommand(
 				("add_principal identifier.license:%s group.%s"):format(
 					license,
-					group.Permission.Group
+					COMPONENTS.Config.Groups[tostring(v)].Permission.Group
 				)
 			)
 		end
@@ -321,26 +294,10 @@ function PlayerClass(source, data)
 end
 
 function GetPlayerLicense(source)
-	local playerIds = GetPlayerIdentifiers(source)
-	local prioritizedId = nil
-
-	for _, id in ipairs(playerIds) do
-		if string.sub(id, 1, string.len("steam:")) == "steam:" then
-			prioritizedId = id
-			break
+	for _, id in ipairs(GetPlayerIdentifiers(source)) do
+		if string.sub(id, 1, string.len("license:")) == "license:" then
+			local license = string.sub(id, string.len("license:") + 1)
+			return license
 		end
 	end
-
-	if not prioritizedId then
-		for _, id in ipairs(playerIds) do
-			if string.sub(id, 1, string.len("license:")) == "license:" then
-				prioritizedId = id
-				break
-			end
-		end
-	end
-
-	return prioritizedId
 end
-
-exports('GetPlayerLicense', GetPlayerLicense)

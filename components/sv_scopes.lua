@@ -1,27 +1,28 @@
 -- local _scopes = {}
 
--- exports('ScopesGetScope', function(scopeOwner)
---     return _scopes[tostring(scopeOwner)]
--- end)
-
--- exports('ScopesIsPlayerInScope', function(source, scopeOwner)
---     local targets = _scopes[tostring(scopeOwner)]
---     if targets then
---         return targets[tostring(source)]
---     end
---     return false
--- end)
-
--- exports('ScopesTriggerScopeEvent', function(eventName, scopeOwner, ...)
---     local targets = _scopes[tostring(scopeOwner)]
---     if targets then
---         for target, _ in pairs(targets) do
---             TriggerClientEvent(eventName, target, ...)
+-- COMPONENTS.Scopes = {
+--     _name = 'core',
+--     GetScope = function(self, scopeOwner)
+--         return _scopes[tostring(scopeOwner)]
+--     end,
+--     IsPlayerInScope = function(self, source, scopeOwner)
+--         local targets = _scopes[tostring(scopeOwner)]
+--         if targets then
+--             return targets[tostring(source)]
 --         end
---     end
+--         return false
+--     end,
+--     TriggerScopeEvent = function(self, eventName, scopeOwner, ...)
+--         local targets = _scopes[tostring(scopeOwner)]
+--         if targets then
+--             for target, _ in pairs(targets) do
+--                 TriggerClientEvent(eventName, target, ...)
+--             end
+--         end
 
---     TriggerClientEvent(eventName, scopeOwner, ...)
--- end)
+--         TriggerClientEvent(eventName, scopeOwner, ...)
+--     end,
+-- }
 
 -- AddEventHandler('playerEnteredScope', function(data)
 --     local playerEntering, player = data["player"], data["for"]

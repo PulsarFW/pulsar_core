@@ -1,5 +1,5 @@
 RegisterServerEvent("Error:Server:Report", function(resource, ...)
-	exports['pulsar-core']:LoggerError("Client Error", string.format("Script Error In %s", resource), {
+	COMPONENTS.Logger:Error("Client Error", string.format("Script Error In %s", resource), {
 		console = true,
 		file = true,
 		database = true,

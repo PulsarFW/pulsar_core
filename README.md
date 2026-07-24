@@ -6,17 +6,22 @@
 
 # PULSAR-CORE
 
-### Core foundation of the Pulsar Framework
+### The framework root — the shared `plsr` interface every other resource is built on
 
 <br/>
 
 ![Lua](https://img.shields.io/badge/Lua_5.4-2C2D72?style=flat-square&logo=lua&logoColor=white)
 ![FiveM](https://img.shields.io/badge/FiveM-F40552?style=flat-square)
-![MariaDB](https://img.shields.io/badge/MariaDB-003545?style=flat-square&logo=mariadb&logoColor=white)
 
 <br/>
 
-[Overview](#overview) · [Configuration](#configuration) · [Dependencies](#dependencies)
+<sub>Enjoy the framework? A coffee helps keep active development, hardening, and support going.</sub>
+
+<a href="https://buymeacoffee.com/pulsarframework"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 50px !important;width: 180px !important;" /></a>
+
+<br/>
+
+[Overview](#overview) · [Dependencies](#dependencies)
 
 </div>
 
@@ -24,44 +29,17 @@
 
 ## Overview
 
-The core of the Pulsar Framework. Every other resource in the stack depends on this. It handles player lifecycle, the middleware pipeline, bidirectional callbacks, routing buckets, task scheduling, logging, punishment, and network sync. Nothing runs without it.
+Every resource in the framework depends on this one. It exposes the shared `plsr` global and the components everything else is built on — state management, callbacks, middleware, player data, database access, logging, and more. See the API reference for the full list.
 
----
-
-## Configuration
-
-Add to `server.cfg`:
-
-```
-set sv_environment     "PROD"
-set sv_access_role      0
-set log_level           0
-set plsfw_version       "1.0.0"
-```
-
-| Convar | Default | Description |
-|--------|---------|-------------|
-| `sv_environment` | `DEV` | `DEV` or `PROD` — controls environment-gated behaviour |
-| `sv_access_role` | `0` | Minimum access role level |
-| `log_level` | `0` | Logging verbosity — `0` off, higher = more verbose |
-| `plsfw_version` | `UNKNOWN` | Framework version string surfaced to other resources |
-
-**Optional Discord webhooks:**
-
-| Convar | Purpose |
-|--------|---------|
-| `discord_connection_webhook` | Player connect / disconnect logs |
-| `discord_error_webhook` | Error logs |
-| `discord_log_webhook` | General logs |
-| `discord_pwnzor_webhook` | Anti-cheat logs |
-| `discord_app` | Discord app ID (client rich presence) |
+> [!WARNING]
+> This is the single most depended-upon resource in the framework. Changing a component's method signature here breaks every resource that calls it, not just this one — see the full API reference before touching anything under `core/`.
 
 ---
 
 ## Dependencies
 
-- `oxmysql` — database layer
-- `pulsar-pwnzor` — anti-cheat module
+- `pulsar_pwnzor` — anti-cheat check loaded alongside every resource
+- `oxmysql` — external resource, not part of Pulsar — the MariaDB driver `plsr.Database` wraps
 
 ---
 

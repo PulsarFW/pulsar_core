@@ -1,5 +1,25 @@
--- Version Checking on resource startup
-AddEventHandler('onResourceStart', function(resource)
-  if resource ~= GetCurrentResourceName() then return end
-  exports['pulsar-core']:VersionCheck('PulsarFW/pulsar-core')
+AddEventHandler("Core:Shared:Ready", function()
+	-- COMPONENTS.Database.Auth:find({
+	-- 	collection = "roles",
+	-- 	query = {},
+	-- }, function(success, results)
+	-- 	if not success or #results <= 0 then
+	-- 		COMPONENTS.Logger:Critical("Core", "Failed to Load User Groups", {
+	-- 			console = true,
+	-- 			file = true,
+	-- 		})
+
+	-- 		return
+	-- 	end
+
+	-- 	COMPONENTS.Config.Groups = {}
+
+	-- 	for k, v in ipairs(results) do
+	-- 		COMPONENTS.Config.Groups[v.Abv] = v
+	-- 	end
+
+	-- 	COMPONENTS.Logger:Info("Core", string.format("Loaded %s User Groups", #results), {
+	-- 		console = true,
+	-- 	})
+	-- end)
 end)

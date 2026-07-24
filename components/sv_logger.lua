@@ -1,5 +1,3 @@
-local DISCORD_NAME = "Logger Bot"
-local DISCORD_IMAGE = "https://i.ibb.co/bzct884/logo.png"
 local logWebhook = GetConvar("discord_log_webhook", "NOT SET")
 
 local colors = {
@@ -19,25 +17,46 @@ local levelColors = {
 	[5] = "critical",
 }
 
-exports('LoggerTrace', function(component, log, flags, data)
-	doLog(1, component, log, flags, data)
+AddEventHandler("Logger:Log", function(component, log, flags, extra)
+	COMPONENTS.Logger:Log(component, log, flags, extra)
 end)
-
-exports('LoggerInfo', function(component, log, flags, data)
-	doLog(2, component, log, flags, data)
+AddEventHandler("Logger:Trace", function(component, log, flags, extra)
+	COMPONENTS.Logger:Trace(component, log, flags, extra)
 end)
-
-exports('LoggerWarn', function(component, log, flags, data)
-	doLog(3, component, log, flags, data)
+AddEventHandler("Logger:Info", function(component, log, flags, extra)
+	COMPONENTS.Logger:Info(component, log, flags, extra)
 end)
-
-exports('LoggerError', function(component, log, flags, data)
-	doLog(4, component, log, flags, data)
+AddEventHandler("Logger:Warn", function(component, log, flags, extra)
+	COMPONENTS.Logger:Warn(component, log, flags, extra)
 end)
-
-exports('LoggerCritical', function(component, log, flags, data)
-	doLog(5, component, log, flags, data)
+AddEventHandler("Logger:Error", function(component, log, flags, extra)
+	COMPONENTS.Logger:Error(component, log, flags, extra)
 end)
+AddEventHandler("Logger:Critical", function(component, log, flags, extra)
+	COMPONENTS.Logger:Critical(component, log, flags, extra)
+end)
+COMPONENTS.Logger = {
+	_required = { "Log" },
+	_name = "core",
+	Trace = function(self, component, log, flags, data)
+		doLog(1, component, log, flags, data)
+	end,
+	Info = function(self, component, log, flags, data)
+		doLog(2, component, log, flags, data)
+	end,
+	Warn = function(self, component, log, flags, data)
+		doLog(3, component, log, flags, data)
+	end,
+	Error = function(self, component, log, flags, data)
+		doLog(4, component, log, flags, data)
+	end,
+	Critical = function(self, component, log, flags, data)
+		doLog(5, component, log, flags, data)
+	end,
+	Log = function(self, component, log, flags, extra) -- Retained purely for legacy sake, stop using this
+		doLog(0, component, log, flags, extra)
+	end,
+}
 
 function doLog(level, component, log, flags, data)
 	CreateThread(function()
@@ -66,41 +85,42 @@ function doLog(level, component, log, flags, data)
 		if flags == nil then
 			flags = { console = true }
 		end
-
-		local loggingLevel = 0
-		loggingLevel = exports["pulsar-core"]:GetLogging()
-
-		if flags.console and level >= loggingLevel then
+		if flags.console and level >= COMPONENTS.Convar.LOGGING.value then
 			local formattedLog = string.format("%s\t[^6%s^7] %s", prefix, component, log)
 			print(formattedLog)
 		end
 
 		if flags.file then
-			local currDate = os.date("%Y-%m-%d")
 			local timestamp = os.date("%I:%M:%S %p")
-			os.execute("mkdir logs")
-			os.execute(('mkdir "logs/%s"'):format(component))
-			local logFile, errorReason = io.open(("logs/%s/%s.log"):format(component, currDate), "a")
-			if not logFile then
-				return print(errorReason)
-			end
 			local formattedLog = string.format("%s  [%s]    %s", mPrefix, timestamp, log)
-			logFile:write(formattedLog .. "\n")
-			logFile:close()
-		end
-
-
-		if GlobalState.IsProduction and flags.database then
-			exports.oxmysql:insert('INSERT INTO logs (date, level, component, log, data) VALUES (?, ?, ?, ?, ?)', {
-				os.time(),
-				level,
-				component,
-				log,
-				json.encode(data or {})
+		
+			local webhookURL = "https://discord.com/api/webhooks/your_webhook_here" -- replace with your webhook
+		
+			PerformHttpRequest(webhookURL, function() end, "POST", json.encode({
+				content = formattedLog
+			}), {
+				["Content-Type"] = "application/json"
 			})
 		end
+		
+		
 
-		if GlobalState.IsProduction and flags.discord then
+		if COMPONENTS.Proxy.DatabaseReady then
+			if flags.database then
+				COMPONENTS.Database:Query(
+					"CREATE TABLE IF NOT EXISTS `logs` (`id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, `date` BIGINT NOT NULL, `level` INT NOT NULL, `component` VARCHAR(191) NOT NULL, `log` TEXT, `data` JSON NULL)",
+					nil,
+					function()
+						COMPONENTS.Database:Insert(
+							"INSERT INTO `logs` (`date`, `level`, `component`, `log`, `data`) VALUES (?, ?, ?, ?, ?)",
+							{ os.time(), level, component, machineLog or log, data ~= nil and json.encode(data) or nil }
+						)
+					end
+				)
+			end
+		end
+
+		if flags.discord then
 			if logWebhook ~= "NOT SET" then
 				if type(flags.discord) == "table" then
 					if flags.discord.embed then
@@ -144,12 +164,7 @@ function doLog(level, component, log, flags, data)
 							function(err, text, headers) end,
 							"POST",
 							json.encode({
-								content = ("%s [%s] %s\n%s"):format(
-									mPrefix,
-									component,
-									log,
-									flags.discord.content
-								),
+								content = ("%s [%s] %s\n%s"):format(mPrefix, component, log, flags.discord.content),
 							}),
 							{ ["Content-Type"] = "application/json" }
 						)

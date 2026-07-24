@@ -1,16 +1,17 @@
+COMPONENTS = {}
+
 AddEventHandler("onResourceStart", function(resource)
 	if resource == GetCurrentResourceName() then
-		Wait(1000)
 		CreateThread(function()
 			local ver
 			repeat
 				Wait(0)
-			until exports["pulsar-core"]:GetPlsfwVersion() ~= nil
+			until COMPONENTS.Convar.PLSR_VERSION ~= nil
 
-			if exports["pulsar-core"]:GetPlsfwVersion() == "UNKNOWN" then
+			if COMPONENTS.Convar.PLSR_VERSION.value == "UNKNOWN" then
 				ver = "^1Version Unknown"
 			else
-				ver = "^2v" .. exports["pulsar-core"]:GetPlsfwVersion()
+				ver = "^2v" .. COMPONENTS.Convar.PLSR_VERSION.value
 			end
 
 			print([[
@@ -36,11 +37,8 @@ AddEventHandler("onResourceStart", function(resource)
 			print("^6Pulsar Framework ^7" .. ver)
 			print("^3Maintained by ^6Pulsar Development Team^7")
 			print("^8Special thanks to ^3Autlaww^8 for SQL & export work^7")
-
 			print([[
 ^6=================================================================================================^7
-
-
 ]])
 
 			TriggerEvent("Core:Shared:Watermark")

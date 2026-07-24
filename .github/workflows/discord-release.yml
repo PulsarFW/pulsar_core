@@ -1,0 +1,10 @@
+name: Discord Release Notification
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  github-releases-to-discord:
+    uses: PulsarFW/.github/.github/workflows/discord-release.yml@main
+    secrets: inherit

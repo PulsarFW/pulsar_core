@@ -1,10 +1,8 @@
-local function GetPlayer()
-    return exports["pulsar-core"]:GetLocalPlayer()
-end
+COMPONENTS.Fetch = {
+    _required = { 'Player' },
+    _name = 'core',
+}
 
-local function GetCharacter()
-    return exports["pulsar-core"]:GetPlayerData('Character')
+function COMPONENTS.Fetch.Player(self)
+    return COMPONENTS.Player.LocalPlayer
 end
-
-exports('FetchPlayer', GetPlayer)
-exports('FetchCharacter', GetCharacter)
