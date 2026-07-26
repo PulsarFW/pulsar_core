@@ -7,6 +7,9 @@ author 'Artmines - maintained for Pulsar Framework'
 url 'https://pulsarframe.work'
 version 'v1.0.0'
 
+version_check 'yes'
+github 'https://github.com/PulsarFW/pulsar_core'
+
 server_script '@oxmysql/lib/MySQL.lua'
 client_script '@pulsar_pwnzor/client/check.lua'
 

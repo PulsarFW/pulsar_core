@@ -38,7 +38,7 @@ function COMPONENTS.Core.Init(self)
 	_inPauseMenu = IsPauseMenuActive()
 	plsr.State.flags.inPauseMenu = _inPauseMenu
 
-	AddTextEntry("FE_THDR_GTAO", "~g~Pulsar Framework~m~")
+	AddTextEntry("FE_THDR_GTAO", "~p~Pulsar Framework~m~")
 	AddTextEntry('PM_PANE_CFX', "Pulsar Framework")
 
 	SetScenarioTypeEnabled("WORLD_VEHICLE_STREETRACE", false)
