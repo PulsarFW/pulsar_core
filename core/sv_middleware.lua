@@ -24,8 +24,8 @@ COMPONENTS.Middleware = {
         end
     end,
 	TriggerEventWithData = function(self, event, source, ...)
+        local data = {}
         if _middlewares[event] then
-			local data = {}
             for k, v in pairs(_middlewares[event]) do
 				for k2, v2 in ipairs(v.cb(source, ...)) do
 					v2.ID = #data + 1
@@ -33,8 +33,8 @@ COMPONENTS.Middleware = {
 				end
             end
 			table.sort(data, function(a,b) return a.ID < b.ID end)
-			return data
         end
+		return data
 	end,
     Add = function(self, event, cb, prio)
         
