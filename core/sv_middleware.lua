@@ -3,7 +3,7 @@ local _middlewares = {}
 local _ignored = {
     pac_os = true,
     pac_iec = true,
-    ["screenshot-basic"] = true,
+    ["screencapture"] = true,
 }
 
 AddEventHandler('onResourceStart', function(resource)

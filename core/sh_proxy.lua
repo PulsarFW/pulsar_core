@@ -5,7 +5,7 @@ if IsDuplicityVersion() then _req = { 'ExportsReady', 'DatabaseReady' } end
 local _ignored = { 
     pac_os = true,
     pac_iec = true,
-    ["screenshot-basic"] = true,
+    ["screencapture"] = true,
 }
 
 COMPONENTS.Proxy = {
@@ -18,7 +18,9 @@ AddEventHandler('onResourceStart', function(resource)
     if COMPONENTS.Proxy.ExportsReady and not _ignored[resource] then
         if resource ~= GetCurrentResourceName() then
             TriggerEvent('Proxy:Shared:RegisterReady')
-                -- allows restarting resources/improve dev flow
+
+            -- allows restarting resources/improve dev flow
+            for k in pairs(COMPONENTS) do
                 TriggerEvent('Proxy:Shared:ExtendReady', k)
             end
 
