@@ -5,7 +5,7 @@ name 'Pulsar Core'
 description 'The framework root exposing the shared plsr interface every other resource is built on'
 author 'Artmines - maintained for Pulsar Framework'
 url 'https://pulsarframe.work'
-version 'v1.0.1'
+version 'v1.0.2'
 
 version_check 'yes'
 github 'https://github.com/PulsarFW/pulsar_core'
