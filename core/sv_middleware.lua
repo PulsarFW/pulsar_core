@@ -1,6 +1,6 @@
 local _middlewares = {}
 
-local _ignored = { 
+local _ignored = {
     pac_os = true,
     pac_iec = true,
     ["screenshot-basic"] = true,
@@ -9,7 +9,16 @@ local _ignored = {
 AddEventHandler('onResourceStart', function(resource)
     if COMPONENTS.Proxy.ExportsReady and not _ignored[resource] then
         if resource ~= GetCurrentResourceName() then
-            _middlewares = {}
+            for event, handlers in pairs(_middlewares) do
+                for i = #handlers, 1, -1 do
+                    if handlers[i].resource == resource then
+                        table.remove(handlers, i)
+                    end
+                end
+                if #handlers == 0 then
+                    _middlewares[event] = nil
+                end
+            end
             collectgarbage()
         end
     end
@@ -37,7 +46,6 @@ COMPONENTS.Middleware = {
 		return data
 	end,
     Add = function(self, event, cb, prio)
-        
         if prio == nil then
             prio = 1
         end
@@ -45,8 +53,8 @@ COMPONENTS.Middleware = {
         if _middlewares[event] == nil then
             _middlewares[event] = {}
         end
-        
-        table.insert(_middlewares[event], {cb = cb, prio = prio})
-        table.sort(_middlewares[event], function(a,b) return a.prio < b.prio end)
+
+        table.insert(_middlewares[event], { cb = cb, prio = prio, resource = GetInvokingResource() })
+        table.sort(_middlewares[event], function(a, b) return a.prio < b.prio end)
     end
 }

@@ -18,6 +18,9 @@ AddEventHandler('onResourceStart', function(resource)
     if COMPONENTS.Proxy.ExportsReady and not _ignored[resource] then
         if resource ~= GetCurrentResourceName() then
             TriggerEvent('Proxy:Shared:RegisterReady')
+                -- allows restarting resources/improve dev flow
+                TriggerEvent('Proxy:Shared:ExtendReady', k)
+            end
 
             if GetGameTimer() > 10000 then
                 TriggerEvent('Core:Shared:Ready')
